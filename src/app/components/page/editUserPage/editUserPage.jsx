@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
-// import { useHistory, useParams } from "react-router-dom";
-import { useParams } from "react-router-dom";
+import { useHistory, useParams } from "react-router-dom";
 import { validator } from "../../../utils/validator";
-import api from "../../../api";
 import TextField from "../../common/form/textField";
 import SelectField from "../../common/form/selectField";
 import RadioField from "../../common/form/radioField";
@@ -17,12 +15,12 @@ const EditUserPage = () => {
     const { userId } = useParams();
     const { currentUser } = useAuth();
     console.log(currentUser);
-    // const history = useHistory();
-    const [isLoading, setIsLoading] = useState(false);
+    const history = useHistory();
+    // const [isLoading, setIsLoading] = useState(false);
     const { getUserById } = useUser();
     const user = getUserById(userId);
     const { professions } = useProfessions();
-    const { qualities } = useQualities();
+    const { qualities, isLoading: qualitiesIsLoading } = useQualities();
     const [data, setData] = useState({
         name: user.name,
         email: user.email,
@@ -41,87 +39,41 @@ const EditUserPage = () => {
     const [errors, setErrors] = useState({});
     console.log(professions);
     console.log(qualities);
-    console.log(user);
+    console.log("USER", user);
     console.log(data);
     const { updateUser } = useAuth();
-    // const getProfessionById = (id) => {
-    //     for (const prof of professions) {
-    //         if (prof.value === id) {
-    //             return { _id: prof.value, name: prof.label };
-    //         }
-    //     }
-    // };
-    // const getQualities = (elements) => {
-    //     const qualitiesArray = qualities.map((q) => q.value);
-    //     // for (const elem of elements) {
-    //     //     for (const quality in qualities) {
-    //     //         if (elem.value === qualities[quality].value) {
-    //     //             qualitiesArray.push({
-    //     //                 _id: qualities[quality].value,
-    //     //                 name: qualities[quality].label,
-    //     //                 color: qualities[quality].color
-    //     //             });
-    //     //         }
-    //     //     }
-    //     // }
-    //     return qualitiesArray;
-    // };
+    function getQualitiesListByIds(qualitiesIds) {
+        const qualitiesArray = [];
+        for (const qualId of qualitiesIds) {
+            for (const quality of qualities) {
+                if (quality._id === qualId) {
+                    qualitiesArray.push(quality);
+                    break;
+                }
+            }
+        }
+        return qualitiesArray;
+    }
+    const transformData = (data) => {
+        const result = getQualitiesListByIds(data).map((qual) => ({
+            label: qual.name,
+            value: qual._id
+        }));
+        return result;
+    };
+    useEffect(() => {
+        setData({
+            ...user,
+            qualities: transformData(user.qualities)
+        });
+    }, [qualitiesIsLoading]);
     console.log(qualitiesList.map((q) => q.value));
     console.log(qualitiesList);
     const handleSubmit = (e) => {
         e.preventDefault();
-        updateUser({ ...data, userId });
-
-        // updateUser(data);
-        // const isValid = validate();
-        // if (!isValid) return;
-        // const { profession, qualities } = data;
-        // api.users
-        //     .update(userId, {
-        //         ...data,
-        //         profession: getProfessionById(profession),
-        //         qualities: getQualities(qualities)
-        //     })
-        //     .then((data) => history.push(`/users/${data._id}`));
-        // console.log({
-        //     ...data,
-        //     profession: getProfessionById(profession),
-        //     qualities: getQualities(qualities)
-        // });
+        updateUser({ userId, ...data, qualities: data.qualities.map((q) => (q.value)) });
+        history.push(`/users/${data._id}`);
     };
-    // const transformData = (data) => {
-    //     return data.map((qual) => ({ label: qual.name, value: qual._id }));
-    // };
-    useEffect(() => {
-        setIsLoading(true);
-        // api.users.getById(userId).then(({ profession, qualities, ...data }) =>
-        //     // setData((prevState) => ({
-        //     //     ...prevState,
-        //     //     ...data,
-        //     //     qualities: transformData(qualities),
-        //     //     profession: profession._id
-        //     // }))
-        // );
-        api.professions.fetchAll().then((data) => {
-            // const professionsList = Object.keys(data).map((professionName) => ({
-            //     label: data[professionName].name,
-            //     value: data[professionName]._id
-            // }));
-            // setProfession(professionsList);
-        });
-        api.qualities.fetchAll().then((data) => {
-            // const qualitiesList = Object.keys(data).map((optionName) => ({
-            //     value: data[optionName]._id,
-            //     label: data[optionName].name,
-            //     color: data[optionName].color
-            // }));
-            // setQualities(qualitiesList);
-        });
-    }, []);
-    // useEffect(() => {
-    //     if (data._id) setIsLoading(false);
-    // }, [data]);
-
     const validatorConfig = {
         email: {
             isRequired: {
@@ -157,7 +109,7 @@ const EditUserPage = () => {
             <BackHistoryButton />
             <div className="row">
                 <div className="col-md-6 offset-md-3 shadow p-4">
-                    {isLoading && professions && qualities ? (
+                    {!qualitiesIsLoading ? (
                         <form onSubmit={handleSubmit}>
                             <TextField
                                 label="Имя"
@@ -194,7 +146,7 @@ const EditUserPage = () => {
                                 label="Выберите ваш пол"
                             />
                             <MultiSelectField
-                                defaultValue={qualities}
+                                defaultValue={ transformData(user.qualities) }
                                 options={qualitiesList}
                                 onChange={handleChange}
                                 name="qualities"
